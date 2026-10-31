@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Benin Life — Multiplayer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌆</text></svg>">
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#fff7e8">
+<link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<div id="auth-screen" class="screen">
+  <div class="auth-card">
+    <div class="logo">🌆</div>
+    <h1>BENIN LIFE</h1>
+    <p class="tagline">The real city. Real players. Real hustle.</p>
+    <p class="live-counts" id="live-counts"></p>
+    <div class="tabs">
+      <button id="tab-login" class="tab active">Log in</button>
+      <button id="tab-register" class="tab">Create account</button>
+    </div>
+    <input id="username" maxlength="16" placeholder="Username" autocomplete="username" aria-label="Username">
+    <input id="password" type="password" maxlength="72" placeholder="Password (min 8 characters)" autocomplete="current-password" aria-label="Password">
+    <button id="auth-btn" class="primary">Enter the city →</button>
+    <p id="auth-err" class="err"></p>
+    <p class="hint">Real players. Live chat. One Benin City.</p>
+  </div>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="game-screen" class="screen hidden">
+  <div id="hud">
+    <div class="hud-left">
+      <span id="hud-day" class="pill">📅 Day 1</span>
+      <span id="hud-cash" class="pill cash">₦10,000</span>
+      <span id="hud-level" class="pill">⭐ Lv 1</span>
+    </div>
+    <div class="hud-right">
+      <button id="btn-recenter" class="icon-btn hidden" title="Follow me" aria-label="Follow me">📍</button>
+      <button id="btn-dm" class="icon-btn" title="Messages" aria-label="Messages">✉️<span id="dm-badge" class="badge hidden"></span></button>
+      <button id="btn-nearby" class="icon-btn" title="Nearby" aria-label="Places nearby">🔭</button>
+      <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+      <button id="btn-social" class="icon-btn" title="Friends & rooms" aria-label="Friends and rooms">👥<span id="social-badge" class="badge hidden"></span></button>
+      <button id="btn-menu" class="icon-btn" title="Menu" aria-label="Menu">☰</button>
+      <button id="btn-admin" class="icon-btn hidden" title="Admin panel" aria-label="Admin panel">🛠</button>
+      <button id="btn-help" class="icon-btn" title="Help" aria-label="Help">❓</button>
+      <button id="btn-logout" class="icon-btn" title="Log out" aria-label="Log out">⏻</button>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat" id="stat-energy"><span>⚡</span><div class="bar"><div id="bar-energy" class="fill energy"></div></div><span class="stat-num" id="num-energy"></span></div>
+    <div class="stat" id="stat-hunger"><span>🍲</span><div class="bar"><div id="bar-hunger" class="fill hunger"></div></div><span class="stat-num" id="num-hunger"></span></div>
+    <div class="stat" id="stat-happy"><span>😊</span><div class="bar"><div id="bar-happy" class="fill happy"></div></div><span class="stat-num" id="num-happy"></span></div>
+  </div>
+  <div id="xpbar-wrap"><span>⭐</span><div class="bar xpbar"><div id="hud-xpbar" class="fill xp"></div></div></div>
+
+  <div id="main">
+    <div id="map-wrap">
+      <div id="gmap" class="hidden"></div>
+      <canvas id="map" class="hidden"></canvas>
+      <div id="bubble-layer"></div>
+      <div id="quest-card" class="hidden"></div>
+      <div id="event-banner" class="hidden"></div>
+      <div id="map-fallback-note" class="hidden">🗺️ Storybook Benin — illustrated city map</div>
+      <div id="map-boot" class="hidden"><div class="boot-card">🌆<b>Entering the city…</b><span>Painting Benin City streets, please wait</span><span class="boot-dots"><i></i><i></i><i></i></span></div></div>
+      <div id="nearby-panel" class="hidden">
+        <div class="np-head"><b>📍 Places</b><button id="nearby-close" aria-label="Close places">✕</button></div>
+        <div id="nearby-list"></div>
+      </div>
+    </div>
+
+    <div id="chat-panel">
+      <div id="chat-head">💬 City Chat <span id="online-count"></span></div>
+      <div id="chat-msgs"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" maxlength="200" placeholder="Talk to the city…" autocomplete="off" aria-label="City chat message">
+        <button id="chat-send" aria-label="Send message">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <nav id="dock">
+    <button id="dock-map" aria-label="Map" class="active"><span class="di">🗺️</span>Map</button>
+    <button id="dock-hustle" aria-label="Hustle"><span class="di">💼</span>Hustle</button>
+    <button id="dock-chat" aria-label="Chat"><span class="di">💬</span>Chat</button>
+    <button id="dock-social" aria-label="Social"><span class="di">👥</span>Social</button>
+    <button id="dock-menu" aria-label="Menu"><span class="di">☰</span>Menu</button>
+  </nav>
+
+  <div id="dpad">
+    <button data-k="up">▲</button>
+    <div class="dpad-mid">
+      <button data-k="left">◀</button>
+      <button data-k="down">▼</button>
+      <button data-k="right">▶</button>
+    </div>
+  </div>
+
+  <div id="zone-panel" class="hidden">
+    <div class="zone-card">
+      <div class="zone-title"><span id="zone-icon"></span><span id="zone-name"></span>
+        <button id="zone-close" class="icon-btn" aria-label="Close zone panel">✕</button>
+      </div>
+      <div id="zone-body"></div>
+    </div>
+  </div>
+
+  <div id="menu-panel" class="hidden">
+    <div class="zone-card wide">
+      <div class="zone-title"><span id="menu-icon">☰</span><span id="menu-title">Menu</span>
+        <button id="menu-close" class="icon-btn" aria-label="Close menu">✕</button>
+      </div>
+      <div id="menu-body"></div>
+    </div>
+  </div>
+
+  <div id="dm-panel" class="hidden">
+    <div class="zone-card wide">
+      <div class="zone-title">✉️ Messages <button id="dm-back" class="icon-btn hidden" aria-label="Back to messages">‹</button>
+        <button id="dm-close" class="icon-btn" aria-label="Close messages">✕</button>
+      </div>
+      <div id="dm-body"></div>
+    </div>
+  </div>
+
+  <div id="profile-modal" class="hidden">
+    <div class="zone-card">
+      <div class="zone-title"><span id="profile-title">👤</span>
+        <button id="profile-close" class="icon-btn" aria-label="Close profile">✕</button>
+      </div>
+      <div id="profile-body"></div>
+    </div>
+  </div>
+
+  <div id="settings-panel" class="hidden">
+    <div class="zone-card">
+      <div class="zone-title">⚙️ Settings
+        <button id="settings-close" class="icon-btn" aria-label="Close settings">✕</button>
+      </div>
+      <div id="settings-body"></div>
+    </div>
+  </div>
+
+  <div id="social-panel" class="hidden">
+    <div class="zone-card wide">
+      <div class="zone-title">👥 Social
+        <button id="social-close" class="icon-btn" aria-label="Close social">✕</button>
+      </div>
+      <div class="sp-tabs">
+        <button data-tab="friends" class="sp-tab-btn active">Friends</button>
+        <button data-tab="rooms" class="sp-tab-btn">Rooms</button>
+        <button data-tab="requests" class="sp-tab-btn">Requests<span id="req-badge" class="badge hidden"></span></button>
+      </div>
+      <div id="sp-friends" class="sp-tab">
+        <div class="sp-addrow">
+          <input id="friend-search" maxlength="20" placeholder="Add friend by username…" autocomplete="off">
+          <button id="friend-add-btn" class="go" aria-label="Add friend">Add</button>
+        </div>
+        <div id="friends-list"></div>
+      </div>
+      <div id="sp-rooms" class="sp-tab hidden">
+        <div id="rooms-list"></div>
+        <div class="sp-addrow col">
+          <input id="room-name" maxlength="30" placeholder="New room name…">
+          <input id="room-topic" maxlength="80" placeholder="Topic (optional)…">
+          <button id="room-create-btn" class="go" aria-label="Create room">Create room</button>
+        </div>
+      </div>
+      <div id="sp-requests" class="sp-tab hidden">
+        <div id="requests-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="room-panel" class="hidden">
+    <div class="zone-card wide">
+      <div class="zone-title"><span id="room-title">💬 Room</span>
+        <span id="room-count" class="muted"></span>
+        <button id="room-close" class="icon-btn" aria-label="Close room">✕</button>
+      </div>
+      <div id="room-topic" class="muted"></div>
+      <div id="room-msgs"></div>
+      <div id="room-members-list" class="hidden"></div>
+      <div class="chat-input-row">
+        <input id="room-input" maxlength="200" placeholder="Talk… (try @username)" autocomplete="off">
+        <button id="room-send" aria-label="Send room message">➤</button>
+      </div>
+      <div class="arow">
+        <button id="room-members-btn" class="go">Members</button>
+        <button id="room-leave-btn" class="go danger">Leave</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="help-panel" class="hidden">
+    <div class="zone-card">
+      <div class="zone-title">❓ How to play <button id="help-close" class="icon-btn" aria-label="Close help">✕</button></div>
+      <div class="help-body">
+        <p><b>Move:</b> tap anywhere on the map to walk there. Drag to look around, pinch (or scroll) to zoom. A dashed line + 🚩 flag shows your route, with the distance left ("🚶 1.2km to go") — the flag gently bobs as you walk, and a zone sheet's 🚶 Walk button shows an estimated walk time at game speed (~N sec/min). No swipe-to-move, no D-pad — tap-to-move only.</p>
+        <p><b>17 places:</b> Ring Road, Oba Market, New Benin Market, UNIBEN, Ogba Zoo, Kada Plaza, GRA Housing, Oba Palace, Igun Street, Ekiosa Market, National Museum, Ogbemudia Stadium, Central Hospital, Benin Airport, Sapele Road, Ugbowo, Ekenwan Campus. Tap 🔭 Places for all 17 sorted by distance.</p>
+        <p><b>Work (53 jobs):</b> Market Porter, Keke Driver, Shop Assistant, Graduate Intern (needs a UNIBEN certificate), Palace Tour Guide, Bronze Caster, Market Trader, Ward Assistant, Stadium Groundskeeper, Airport Porter, POS Agent, Cyber Café Attendant, Campus Tutor, Museum Guide — plus Zoo Keeper Assistant at Ogba Zoo, Cinema Usher at Kada Plaza, Estate Caretaker at GRA Housing, Stadium Food Vendor at Ogbemudia Stadium, Airport Taxi Driver at Benin Airport, Campus Security Guard at Ekenwan Campus, Museum Gift Shop Attendant at National Museum, Ring Road Bus Conductor at Ring Road, Oba Market Stall Assistant at Oba Market, New Benin Market Cashier at New Benin, Ekiosa Market Loader at Ekiosa Market, Palace Grounds Keeper at Oba Palace, Hospital Records Clerk at Central Hospital, Sapele Road Shop Attendant at Sapele Road, Zoo Ticket Seller at Ogba Zoo, Kada Popcorn Seller at Kada Plaza, UNIBEN Library Assistant at UNIBEN, Igun Bronze Polisher at Igun Street, Ugbowo Hostel Café Waiter at Ugbowo, GRA Gate Security at GRA Housing, Stadium Merch Seller at Ogbemudia Stadium, Museum Café Assistant at National Museum, Ring Road Traffic Warden at Ring Road, Sapele Road Delivery Rider at Sapele Road, Airport Check-in Assistant at Benin Airport, New Benin Fruit Seller at New Benin, Ugbowo Bookshop Clerk at Ugbowo, Hospital Pharmacy Assistant at Central Hospital, Zoo Gift Shop Clerk at Ogba Zoo, UNIBEN Campus Shuttle Driver at UNIBEN, Igun Bronze Apprentice at Igun Street, GRA Gardener at GRA Housing, Ekenwan Campus Librarian at Ekenwan Campus, Ekiosa Fish Seller at Ekiosa Market, Kada Cinema Cleaner at Kada Plaza, Oba Market Spice Seller at Oba Market, Palace Drummer at Oba Palace, Airport Ground Crew at Benin Airport and Zoo Tour Guide at Ogba Zoo. Walk into the job's zone, open its sheet, work a shift.</p>
+        <p><b>Food (31):</b> Mama Put, Suya, Shawarma, Party Jollof, Asun, Banga Soup, Pepper Soup (Central Hospital + Ring Road), Akara &amp; Pap (Oba Market + New Benin), Roasted Corn &amp; Pear (Ekiosa Market + Sapele Road), Boli &amp; Groundnut (Sapele Road + Ring Road), Ofada &amp; Ayamase (New Benin + Ekiosa Market), Eba &amp; Egusi (Ring Road + Ugbowo), Fried Rice &amp; Chicken (Benin Airport + Ugbowo), Nkwobi (Ekiosa Market + Benin Airport), Yam &amp; Egg Sauce (Ugbowo + New Benin), Moi Moi &amp; Pap (Oba Market + Central Hospital), Pounded Yam &amp; Vegetable Soup (Ugbowo + Central Hospital), Beans &amp; Dodo (Oba Market + Sapele Road), Catfish Barbecue (Ring Road + Benin Airport), Snail Pepper Soup (Ekiosa Market + Oba Market), Groundnut Soup &amp; Semo (Ugbowo + Sapele Road), Edikang Ikong (Ugbowo + Ekiosa Market), Afang Soup (Oba Market + New Benin), Starch &amp; Owho Soup (Sapele Road + New Benin), Ukodo (Yam Pepper Soup) (Benin Airport + Central Hospital), White Rice &amp; Stew (Ring Road + Ekiosa Market), Coconut Rice (Ugbowo + Benin Airport), Ewa Agoyin (Oba Market + Ekiosa Market), Ogbono Soup (Oba Market + Ekiosa Market) and Beans &amp; Plantain (Ekiosa Market + Ring Road) and Amala &amp; Ewedu (Ring Road + Ekiosa Market). <b>Fun (37):</b> Ogba Zoo visit, Kada Cinema, Watch a Match, Museum Tour, Palace Tour, Hostel Party at Ugbowo, Sapele Night Market stroll, Airport Viewing Deck at Benin Airport, Campus Hangout at UNIBEN, Oba Market Bargain Hunt, Igun Bronze Gallery Walk at Igun Street, Ring Road Evening Stroll, Ekiosa Evening Gist at Ekiosa Market, GRA Evening Walk at GRA Housing, New Benin Night Shopping at New Benin, Ekenwan Campus Football Viewing at Ekenwan Campus, Hospital Garden Sit-out at Central Hospital, Ogba Zoo Picnic at Ogba Zoo, Kada Arcade Games at Kada Plaza, Stadium Fan Zone Cheer at Ogbemudia Stadium, Palace Royal Garden Walk at Oba Palace, Museum Art Sketch Session at National Museum, GRA Jogging Loop at GRA Housing, UNIBEN Botanical Garden Walk at UNIBEN, Ugbowo Street Football at Ugbowo, Airport Lounge Chill at Benin Airport, Oba Market Live Music at Oba Market, Sapele Road Food Tour at Sapele Road, Ekenwan Campus Movie Night at Ekenwan Campus, Zoo Animal Feeding Experience at Ogba Zoo, Igun Bronze Casting Demo at Igun Street, Zoo Bird Watching at Ogba Zoo, Palace Drum Circle at Oba Palace, Ekiosa Evening Dance at Ekiosa Market, Ring Road Morning Walk at Ring Road, Museum Storytelling Evening at National Museum and UNIBEN Sports Day at UNIBEN.</p>
+        <p><b>Businesses (25):</b> Mama Put Spot, POS Kiosk, Phone Repair Shop, Barbing Salon, Boutique, Cyber Café, Grocery Mini-Mart, Car Wash, Laundry Service, Bookshop &amp; Stationery, Electronics Shop, Pharmacy, Supermarket, Bakery, Restaurant, Furniture Shop, Event Hall, Lounge &amp; Bar, Hotel &amp; Suites, Shopping Mall, Filling Station, Resort &amp; Suites, Tech Hub, Apartment Complex and Cinema Complex — daily income, bought in Menu → Business. <b>Night &amp; time:</b> after dark the map glows with warm street lamps, market lanterns, twinkling stars, drifting fireflies, lit house windows and warm streetlights glowing along the major roads, and a ☀️/🌙 disc in the corner follows the game clock — the Day pill shows the in-game time too. By day, butterflies flutter and colourful kites and balloons drift over the map, soft golden sunbeams sweep the map at midday, striped awnings shade the three markets, colourful bunting flags flutter over them, soft steam rises from the market food stalls, small canoes drift down the Ikpoba River, small keke and car dots drive along the major roads by day, a ball bounces over the stadium pin by day, a small plane crosses the sky by day, and a giraffe bobs over the Ogba Zoo pin by day, dawn mist drifts in the early morning, and soft shadows drift under the clouds. At dusk (5–7pm game time) a warm golden-hour glow washes the map. On Owambe Saturdays, colourful fireworks burst over the Oba Palace pin. On Market Days, colourful confetti falls over the three market pins. On Rainy Days, soft shimmer puddles appear near the three market pins. On NEPA Outage days, warm candle glows flicker over the zone pins. Market crowds bustle around Oba, Ekiosa and New Benin. Your walk leaves a fading dotted trail behind you, a gold chevron points your walking direction, a soft shadow sits under your marker, every zone pin carries its own soft shadow, and tapping the map blooms a gold ripple ring at the tap point. Arriving at a new zone now also fires a 📍 toast naming the place. The 🔭 Places header shows the total place count, and each Places row now shows its walk ETA beside the distance. Your cash pill flashes green when pay lands. A thin gold ⭐ bar under the stats shows your XP progress to the next level, and each stat bar now shows its number too. <b>Menu → Bank</b> shows your 💰 net worth (cash + savings − loan + business + ride), your 💵 total liquid (cash + savings), your 📈 daily business income, your 🏠 rent due today and your 💹 tomorrow's savings interest and your 💸 daily outgoings (rent + loan interest), plus ₦1,000 / ₦5,000 / ₦10,000 quick-amount chips for deposits and withdrawals. Zone sheets also show today's city event effect and a 💼 jobs • 🍲 foods • ✨ fun summary line, and job rows show each shift's cooldown, and food/fun rows now show their full effects (hunger, energy, happiness). <b>⚙️ Reduce motion</b> now hides the drifting clouds, cloud shadows, birds, butterflies, kites, balloons, sunbeams, market crowds, lanterns, fireflies, dawn mist, market awnings, bunting flags, river boats, house window lights, the stadium ball, Owambe fireworks, market steam, night streetlights, Rainy Day puddles, daytime road traffic, NEPA candle glows, Market Day confetti, the daytime plane flyover and the zoo giraffe too, for a calmer map.</p>
+        <p><b>📜 Daily quest:</b> one quest per game day (work a shift, visit a place, eat, have fun, study, save, or sleep) — finish it for a cash reward on the quest card, including the new Study once, Have fun anywhere, Sleep once to rest and Save ₦5,000 in the bank quests and the Visit National Museum, Visit Igun Street, Visit Ekiosa Market, Visit Central Hospital, Visit Sapele Road, Visit Ugbowo, Visit Kada Plaza, Visit Ogbemudia Stadium, Visit Benin Airport, Visit New Benin Market and Visit Ring Road quests — now covering all 17 zones. Today's visit destination pulses gold on the map and carries a 📜 tag in 🔭 Places. <b>City event:</b> one rotating event per day (Market Day, Owambe, Rainy Day, NEPA Outage) with a small bonus shown on the banner.</p>
+        <p><b>⭐ XP &amp; levels:</b> work +20 XP, fun +15, study +40; a level every 150 XP. <b>Achievements</b> (First Shift, Certified, Homeowner, Business Owner, Governor) appear in your profile once earned — never claimed before you earn them.</p>
+        <p><b>🔭 Street finds:</b> cash, snacks, drinks, 📱 airtime (sell it for ₦400) and 🍊 fruit pop up around you — walk into the teal circle and tap to grab them.</p>
+        <p><b>Low stats:</b> a bar under 25% pulses amber/red and warns you once — eat, rest or have fun before it bottoms out. <b>Rent:</b> due every game day (5 real minutes) — visit GRA Housing. Miss it 3 times and you're under the bridge.</p>
+        <p><b>Menu ☰:</b> bank (savings + loans), businesses (daily income), garage (keke &amp; cars = faster), elections (run for Governor!), dice betting, street runs (risky 😅). <b>Social:</b> tap any player for their profile, ✉️ to DM them privately. <b>⚙️ Settings:</b> sound on/off, reduce motion, and the home-screen install prompt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="install-banner" class="hidden"><span>🌆 Add Benin Life to your home screen for the full app feel</span><button id="install-btn" class="go small">Add to home screen</button><button id="install-dismiss" class="icon-btn" aria-label="Dismiss install prompt">✕</button></div>
+  <div id="toast-wrap"></div>
+  <div id="reconnect" class="hidden">Reconnecting…</div>
+</div>
+
+<script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "Benin Life",
+  "short_name": "Benin Life",
+  "description": "The real city. Real players. Real hustle. A multiplayer life-sim set in Benin City.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff7e8",
+  "theme_color": "#fff7e8",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
