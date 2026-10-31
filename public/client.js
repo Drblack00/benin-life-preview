@@ -37,7 +37,7 @@ const bubbles = []; // {getPos:()=>{lat,lng}, text, until}
 let renderer = null, loopStarted = false;
 let zoneSeen = false; // item 20: arrival haptics gate (no buzz on first load)
 // item 21: settings, persisted in localStorage (sound toggle wires to item 19)
-let settings = { sound: true, reduceMotion: false };
+let settings = { sound: true, reduceMotion: false, calmMap: true }; // calmMap: Max verdict 2026-11-01 — map was "too rowdy"; calm is the default, full ambience is opt-in via Settings
 const lowWarned = new Set(); // item 33: one low-stat toast per dip, not per second
 try { const _s = JSON.parse(localStorage.getItem('bl_settings') || 'null'); if (_s && typeof _s === 'object') settings = { ...settings, ..._s }; } catch {}
 function saveSettings() { try { localStorage.setItem('bl_settings', JSON.stringify(settings)); } catch {} }
@@ -901,7 +901,8 @@ class CanvasRenderer {
     }
     const z = this.cam.z;
     const S = (x, y) => this.w2s(x, y, w, h);
-    const t = settings.reduceMotion ? performance.now() / 10000 : performance.now() / 1000; // item 21: reduce-motion slows (never freezes) map animation
+    const rmCalm = settings.reduceMotion || settings.calmMap !== false; // calm-by-default gate for ALL drifting map ambience
+    const t = rmCalm ? performance.now() / 10000 : performance.now() / 1000; // item 21: reduce-motion slows (never freezes) map animation
     // === original dark theme ===
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#f6dcab'); g.addColorStop(1, '#efc98f');
@@ -935,7 +936,7 @@ class CanvasRenderer {
     // Hidden under reduce-motion (calm map), like the other drifting ambience.
     { window.__blBoats = 0;
       const _bHour = gameHour(); const _bNight = (typeof window !== 'undefined' && window.__forceNight === true) || _bHour >= 20 || _bHour < 5;
-      if (this.river && this.river.length > 2 && !_bNight && !settings.reduceMotion) for (let i = 0; i < 3; i++) {
+      if (this.river && this.river.length > 2 && !_bNight && !rmCalm) for (let i = 0; i < 3; i++) {
         const fi = Math.floor((((t * 0.008 + i * 0.33) % 1 + 1) % 1) * (this.river.length - 2));
         const [ax, ay] = this.river[fi], [bx, by] = this.river[fi + 1];
         if (!vis((ax + bx) / 2, (ay + by) / 2, 300)) continue;
@@ -951,7 +952,7 @@ class CanvasRenderer {
     // Hidden under reduce-motion (calm map), like lanterns/fireflies.
     { window.__blStreetlights = 0;
       const _sHour = gameHour(); const _sNight = (typeof window !== 'undefined' && window.__forceNight === true) || _sHour >= 20 || _sHour < 5;
-      if (_sNight && !settings.reduceMotion && this.roads)
+      if (_sNight && !rmCalm && this.roads)
         for (const rd of this.roads) {
           if (rd.w < 34) continue; // majors only (real majors + schematic ring/radials)
           for (let i = 0; i < rd.pts.length; i += 4) {
@@ -1009,7 +1010,7 @@ class CanvasRenderer {
         ctx.moveTo(s.x - 1.5, s.y + 1); ctx.lineTo(s.x + bw / 2, s.y - bh * 0.34); ctx.lineTo(s.x + bw + 1.5, s.y + 1); ctx.closePath(); ctx.fill();
       }
       // item 120: one warm lit window per visible house at night (bw>12 keeps it to zoomed-in houses)
-      if (_nightB && !settings.reduceMotion && bw > 12) {
+      if (_nightB && !rmCalm && bw > 12) {
         const wa = 0.55 + 0.35 * Math.sin(t * 2.2 + bi * 1.7);
         ctx.fillStyle = `rgba(255,190,80,${wa.toFixed(3)})`;
         ctx.fillRect(s.x + bw * 0.28, s.y + bh * 0.38, 4.5, 5.5);
@@ -1275,7 +1276,9 @@ class CanvasRenderer {
       }
     }
     // item 13: draw the ambient residents wandering their home zones
-    for (const npc of (this.npcs || [])) {
+    // Calm map (Max verdict 2026-11-01): the wandering residents + their greeting
+    // pills were a big part of the "too rowdy" pile-up downtown — hidden when calm.
+    for (const npc of (rmCalm ? [] : (this.npcs || []))) {
       const hz = this.ZM[npc.home]; if (!hz) continue;
       const a = t * npc.sp + npc.ph;
       const wx = hz.x + Math.cos(a) * npc.r, wy = hz.y + Math.sin(a) * npc.r * 0.7;
@@ -1309,7 +1312,7 @@ class CanvasRenderer {
     // === drifting clouds (item 2): slow eastward drift, soft white puffs ===
     // item 82: reduce-motion hides clouds entirely (calm map), not just slowing them
     window.__blClouds = 0;
-    if (!settings.reduceMotion && (this.quality ?? 2) >= 2) for (const c of (this.clouds || [])) {
+    if (!rmCalm && (this.quality ?? 2) >= 2) for (const c of (this.clouds || [])) {
       const WX = 8200;
       const wx = (((c.x + t * c.v + WX) % (2 * WX)) + 2 * WX) % (2 * WX) - WX;
       if (!vis(wx, c.y, 900)) continue;
@@ -1324,7 +1327,7 @@ class CanvasRenderer {
     }
     // === item 130: soft shadows drifting under the clouds (same drift, ground offset) ===
     window.__blCloudShadows = 0;
-    if (!settings.reduceMotion && (this.quality ?? 2) >= 2) for (const c of (this.clouds || [])) {
+    if (!rmCalm && (this.quality ?? 2) >= 2) for (const c of (this.clouds || [])) {
       const WX = 8200;
       const wx = (((c.x + t * c.v + WX) % (2 * WX)) + 2 * WX) % (2 * WX) - WX;
       if (!vis(wx, c.y, 900)) continue;
@@ -1337,7 +1340,7 @@ class CanvasRenderer {
     }
     // === birds crossing the map (item 3): flapping V-flocks on looping paths ===
     // item 82: reduce-motion hides birds too (calm map)
-    if (!settings.reduceMotion && (this.quality ?? 2) >= 2) for (const fl of (this.birds || [])) {
+    if (!rmCalm && (this.quality ?? 2) >= 2) for (const fl of (this.birds || [])) {
       const a = t * fl.sp + fl.ph;
       const bx = fl.cx + Math.cos(a) * fl.rx, by = fl.cy + Math.sin(a) * fl.ry;
       const dir = Math.atan2(Math.cos(a) * fl.ry, -Math.sin(a) * fl.rx);
@@ -1417,7 +1420,7 @@ class CanvasRenderer {
     // item 90: hidden entirely under reduce-motion (calm map), like clouds/birds (item 82)
     { const _mk = ['oba', 'ekiosa', 'newbenin'], _pal = ['#b91c1c', '#0284c7', '#16a34a', '#7c3aed', '#ea580c', '#0f766e'];
       window.__blCrowd = 0;
-      if (!settings.reduceMotion) for (const k of _mk) {
+      if (!rmCalm) for (const k of _mk) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         for (let i = 0; i < 6; i++) {
@@ -1430,7 +1433,7 @@ class CanvasRenderer {
     // === item 63: night market lanterns — warm flickering dots over market pins at night ===
     // item 90: hidden entirely under reduce-motion (calm map); fireflies (item 79) already gated
     { window.__blLanterns = 0;
-      if (_night && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (_night && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         for (let i = 0; i < 6; i++) {
@@ -1442,7 +1445,7 @@ class CanvasRenderer {
       } }
     // === item 79: night fireflies — tiny drifting golden dots at night (pairs with stars) ===
     { window.__blFireflies = 0;
-      if (_night && !settings.reduceMotion) for (let i = 0; i < 14; i++) {
+      if (_night && !rmCalm) for (let i = 0; i < 14; i++) {
         const fx = ((i * 347 + 71) % Math.max(w, 1)) + Math.sin(t * 0.6 + i * 2.1) * 22;
         const fy = ((i * 211 + 137) % Math.max(h, 1)) + Math.cos(t * 0.45 + i * 1.3) * 16;
         const fa = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * 2.4 + i * 1.9));
@@ -1453,7 +1456,7 @@ class CanvasRenderer {
     // === item 100: daytime butterflies — fluttering over the map by day ===
     // Hidden under reduce-motion (calm map), like clouds/birds (item 82).
     { window.__blButterflies = 0;
-      if (!_night && !settings.reduceMotion) for (let i = 0; i < 10; i++) {
+      if (!_night && !rmCalm) for (let i = 0; i < 10; i++) {
         const bx = ((i * 431 + 97) % Math.max(w, 1)) + Math.sin(t * 0.8 + i * 2.4) * 26;
         const by = ((i * 293 + 61) % Math.max(h, 1)) + Math.cos(t * 0.6 + i * 1.8) * 18;
         const flap = Math.sin(t * 12 + i * 1.9);
@@ -1466,7 +1469,7 @@ class CanvasRenderer {
     // === item 150: daytime kites — colourful kites drifting over the map by day ===
     // Hidden under reduce-motion (calm map), like clouds/birds (item 82).
     { window.__blKites = 0;
-      if (!_night && !settings.reduceMotion) for (let i = 0; i < 4; i++) {
+      if (!_night && !rmCalm) for (let i = 0; i < 4; i++) {
         const kx = ((i * 557 + 149) % Math.max(w, 1)) + Math.sin(t * 0.5 + i * 2.2) * 30;
         const ky = ((i * 331 + 83) % Math.max(h, 1)) + Math.cos(t * 0.4 + i * 1.6) * 20;
         const sway = Math.sin(t * 1.8 + i * 2.0) * 4;
@@ -1480,7 +1483,7 @@ class CanvasRenderer {
     // === item 229: daytime balloons — small colourful balloons drifting over the map by day ===
     // Hidden under reduce-motion (calm map), like kites/butterflies.
     { window.__blBalloons = 0;
-      if (!_night && !settings.reduceMotion) for (let i = 0; i < 5; i++) {
+      if (!_night && !rmCalm) for (let i = 0; i < 5; i++) {
         const bx = ((i * 613 + 173) % Math.max(w, 1)) + Math.sin(t * 0.45 + i * 2.1) * 28;
         const by = ((i * 347 + 71) % Math.max(h, 1)) + Math.cos(t * 0.35 + i * 1.5) * 16;
         const cols = ['#ef4444', '#eab308', '#22c55e', '#3b82f6', '#c084fc'];
@@ -1493,7 +1496,7 @@ class CanvasRenderer {
     // === item 239: daytime plane flyover — small plane crossing the map sky by day ===
     // Hidden under reduce-motion (calm map), like kites/balloons.
     { window.__blPlane = 0;
-      if (!_night && !settings.reduceMotion) {
+      if (!_night && !rmCalm) {
         const px = (((t * 22) % (Math.max(w, 1) + 120)) + Math.max(w, 1) + 120) % (Math.max(w, 1) + 120) - 60;
         const py = Math.max(h, 1) * 0.22 + Math.sin(t * 0.5) * 8;
         ctx.fillStyle = '#fff7e8'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 1;
@@ -1505,7 +1508,7 @@ class CanvasRenderer {
     // === item 160: midday sunbeams — soft golden rays sweeping the map at midday ===
     // Game hour 11–13 only; hidden under reduce-motion (calm map), like clouds/birds.
     { window.__blSunbeams = 0;
-      if (_hour >= 11 && _hour < 14 && !settings.reduceMotion) for (let i = 0; i < 5; i++) {
+      if (_hour >= 11 && _hour < 14 && !rmCalm) for (let i = 0; i < 5; i++) {
         const sx = ((i * 479 + 113) % Math.max(w, 1)) + Math.sin(t * 0.3 + i * 1.4) * 24;
         ctx.fillStyle = 'rgba(255,215,90,0.10)';
         ctx.beginPath(); ctx.moveTo(sx - 14, 0); ctx.lineTo(sx + 14, 0); ctx.lineTo(sx + 40, h); ctx.lineTo(sx - 2, h); ctx.closePath(); ctx.fill();
@@ -1514,7 +1517,7 @@ class CanvasRenderer {
     // === item 109: dawn mist wisps — soft cream blobs drifting in the early morning ===
     // Game hour 5–8 only; hidden under reduce-motion (calm map), like clouds/birds.
     { window.__blMist = 0;
-      if (_hour >= 5 && _hour < 9 && !settings.reduceMotion) for (let i = 0; i < 6; i++) {
+      if (_hour >= 5 && _hour < 9 && !rmCalm) for (let i = 0; i < 6; i++) {
         const mx = ((i * 389 + 53) % Math.max(w, 1)) + Math.sin(t * 0.25 + i * 1.7) * 30;
         const my = ((i * 211 + 89) % Math.max(h, 1)) + Math.cos(t * 0.2 + i * 1.2) * 12;
         ctx.fillStyle = 'rgba(255,247,232,0.16)';
@@ -1524,7 +1527,7 @@ class CanvasRenderer {
     // === item 113: market awnings — striped canopies over the three market pins by day ===
     // Hidden under reduce-motion (calm map), like clouds/birds (item 82).
     { window.__blAwnings = 0;
-      if (!_night && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (!_night && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         const cols = ['#b91c1c', '#fff7e8', '#0284c7', '#fff7e8', '#ea580c'];
@@ -1535,7 +1538,7 @@ class CanvasRenderer {
     // === item 165: market bunting flags — swaying triangle strings over the three markets by day ===
     // Hidden under reduce-motion (calm map), like market awnings (item 113).
     { window.__blBunting = 0;
-      if (!_night && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (!_night && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y); const sway = Math.sin(t * 1.6 + zm.x * 0.01) * 3;
         const cols = ['#b91c1c', '#eab308', '#16a34a', '#0284c7', '#ea580c'];
@@ -1546,7 +1549,7 @@ class CanvasRenderer {
     // === item 179: stadium bouncing ball — small ball bouncing over the stadium pin by day ===
     // Hidden under reduce-motion (calm map), like kites/bunting.
     { window.__blStadiumBall = 0;
-      if (!_night && !settings.reduceMotion) {
+      if (!_night && !rmCalm) {
         const zm = (this.ZM || {})['stadium']; if (zm && vis(zm.x, zm.y, 100)) {
           const s = S(zm.x, zm.y); const bounce = Math.abs(Math.sin(t * 2.2)) * 12;
           ctx.fillStyle = 'rgba(58,36,16,0.25)'; ctx.beginPath(); ctx.ellipse(s.x, s.y - 30, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
@@ -1558,7 +1561,7 @@ class CanvasRenderer {
     // === item 243: zoo giraffe — giraffe head-and-neck bobbing over the Ogba Zoo pin by day ===
     // Hidden under reduce-motion (calm map), like the stadium ball.
     { window.__blGiraffe = 0;
-      if (!_night && !settings.reduceMotion) {
+      if (!_night && !rmCalm) {
         const zm = (this.ZM || {})['zoo']; if (zm && vis(zm.x, zm.y, 100)) {
           const s = S(zm.x, zm.y); const bob = Math.sin(t * 1.4) * 3;
           ctx.fillStyle = '#f2c14e'; ctx.strokeStyle = '#3a2410'; ctx.lineWidth = 1.2;
@@ -1573,7 +1576,7 @@ class CanvasRenderer {
     // === item 219: daytime road traffic — small keke/car dots moving along major roads by day ===
     // Hidden under reduce-motion (calm map), like clouds/birds.
     { window.__blTraffic = 0;
-      if (!_night && !settings.reduceMotion && this.roads)
+      if (!_night && !rmCalm && this.roads)
         for (let ri = 0; ri < this.roads.length; ri++) {
           const rd = this.roads[ri]; if (rd.w < 34 || !rd.pts.length) continue; // majors only
           const idx = Math.floor(t * 2 + ri * 7) % rd.pts.length;
@@ -1588,7 +1591,7 @@ class CanvasRenderer {
     // hidden under reduce-motion (calm map), like kites/bunting.
     { window.__blFireworks = 0;
       const _owambe = typeof cityEvent !== 'undefined' && cityEvent && (cityEvent.id === 'owambe' || (cityEvent.name || '').indexOf('Owambe') >= 0);
-      if (_owambe && !settings.reduceMotion) {
+      if (_owambe && !rmCalm) {
         const zm = (this.ZM || {})['palace']; if (zm && vis(zm.x, zm.y, 140)) {
           const s = S(zm.x, zm.y); const cols = ['#ef4444', '#eab308', '#22c55e'];
           for (let i = 0; i < 3; i++) {
@@ -1604,7 +1607,7 @@ class CanvasRenderer {
     // === item 193: market food-stall steam — soft wisps rising over the three market pins by day ===
     // Hidden under reduce-motion (calm map), like market awnings/bunting.
     { window.__blSteam = 0;
-      if (!_night && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (!_night && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         for (let i = 0; i < 2; i++) {
@@ -1620,7 +1623,7 @@ class CanvasRenderer {
     // hidden under reduce-motion (calm map), like fireworks/steam.
     { window.__blPuddles = 0;
       const _rain = typeof cityEvent !== 'undefined' && cityEvent && (cityEvent.id === 'rain' || (cityEvent.name || '').indexOf('Rainy') >= 0);
-      if (_rain && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (_rain && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         for (let i = 0; i < 2; i++) {
@@ -1638,7 +1641,7 @@ class CanvasRenderer {
     // hidden under reduce-motion (calm map), like fireworks/puddles.
     { window.__blCandles = 0;
       const _nepa = typeof cityEvent !== 'undefined' && cityEvent && (cityEvent.id === 'nepa' || (cityEvent.name || '').indexOf('NEPA') >= 0);
-      if (_nepa && !settings.reduceMotion) for (const k of Object.keys(this.ZM || {})) {
+      if (_nepa && !rmCalm) for (const k of Object.keys(this.ZM || {})) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y);
         const flick = 0.6 + 0.4 * Math.sin(t * 4 + zm.x * 0.01);
@@ -1651,7 +1654,7 @@ class CanvasRenderer {
     // hidden under reduce-motion (calm map), like fireworks/puddles/candles.
     { window.__blConfetti = 0;
       const _market = typeof cityEvent !== 'undefined' && cityEvent && (cityEvent.id === 'market' || (cityEvent.name || '').indexOf('Market Day') >= 0);
-      if (_market && !settings.reduceMotion) for (const k of ['oba', 'ekiosa', 'newbenin']) {
+      if (_market && !rmCalm) for (const k of ['oba', 'ekiosa', 'newbenin']) {
         const zm = (this.ZM || {})[k]; if (!zm || !vis(zm.x, zm.y, 100)) continue;
         const s = S(zm.x, zm.y); const cols = ['#ef4444', '#eab308', '#22c55e', '#3b82f6'];
         for (let i = 0; i < 4; i++) {
@@ -1963,6 +1966,7 @@ function renderSettings() {
   body.appendChild(section('⚙️ Settings'));
   body.appendChild(row('🔊 Sound effects', 'Coin, tap + level-up sounds (WebAudio, no files)', settings.sound ? 'ON' : 'OFF', () => { settings.sound = !settings.sound; saveSettings(); renderSettings(); }));
   body.appendChild(row('🎞️ Reduce motion', 'Hides clouds, cloud shadows, birds, butterflies, kites, balloons, sunbeams, crowds, lanterns, fireflies, dawn mist, market awnings, bunting flags, river boats, house window lights, the stadium ball, Owambe fireworks, market steam, night streetlights, Rainy Day puddles, daytime road traffic, NEPA candle glows, Market Day confetti, the plane flyover & the zoo giraffe and slows map animation for comfort', settings.reduceMotion ? 'ON' : 'OFF', () => { settings.reduceMotion = !settings.reduceMotion; saveSettings(); renderSettings(); }));
+  body.appendChild(row('🌿 Calm map', 'Keeps the map clean and still — all the drifting decorations (clouds, birds, kites, balloons, boats, traffic dots and the wandering residents with their greetings) stay hidden, and what remains moves slowly and gently. ON by default; turn it OFF only if you want the full busy map back.', settings.calmMap !== false ? 'ON' : 'OFF', () => { settings.calmMap = settings.calmMap === false ? true : false; saveSettings(); renderSettings(); }));
   body.appendChild(note('📳 Haptics: gentle vibration on arrival and rewards, where your phone supports it (Android).'));
 }
 // item 11: on-map daily quest card (server-set quest + reward; tap walks to a visit zone)
